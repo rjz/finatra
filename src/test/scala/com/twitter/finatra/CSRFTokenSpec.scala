@@ -26,7 +26,7 @@ class CSRFTokenSpec extends ShouldSpec {
 
     val csrf = new CSRFToken(secret)
 
-    val result = csrf.isValid("not it")
+    val result = csrf.isValid("bullshit")
 
     result should be === false
 
