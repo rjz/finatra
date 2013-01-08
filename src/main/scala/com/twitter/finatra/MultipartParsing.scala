@@ -36,15 +36,15 @@ object MultipartParsing {
       var nextPart      = multistream.skipPreamble
 
       while(nextPart){
-        val paramParser = new ParameterParser
-        val headers     = paramParser.parse(multistream.readHeaders.toString, ';').asInstanceOf[java.util.Map[String,String]]
+
+        val rawHeaders  = multistream.readHeaders()
         val out         = new ByteArrayOutputStream
-        val name        = headers.get("name").toString
 
         multistream.readBodyData(out)
 
-        val fileobj = new MultipartItem(Tuple2(headers, out))
-        multiParams = multiParams + Tuple2(name, fileobj)
+        val multiPartItem = new MultipartItem(rawHeaders, out)
+
+        multiParams += Tuple2(multiPartItem.name, multiPartItem)
         nextPart    = multistream.readBoundary
       }
     }

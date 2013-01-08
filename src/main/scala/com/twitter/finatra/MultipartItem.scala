@@ -16,17 +16,19 @@
 package com.twitter.finatra
 
 import java.io._
+import org.apache.commons.fileupload.ParameterParser
 
-class MultipartItem(val fileobj:Tuple2[java.util.Map[String,String], ByteArrayOutputStream]) {
-  def headers() = {
-    this.fileobj._1
-  }
+class MultipartItem(val rawHeaders: String, val data: ByteArrayOutputStream) {
 
-  def data() = {
-    this.fileobj._2
-  }
+  val paramParser         = new ParameterParser
+  val parsedHeaders       = HeaderParser.getParsedHeaders(rawHeaders)
+  val contentDisposition  = parsedHeaders.get("Content-Disposition")
+  val headers             = paramParser.parse(contentDisposition, ';').
+                              asInstanceOf[java.util.Map[String,String]]
 
-  def name() = {
+  headers.put("Content-Type", parsedHeaders.get("Content-Type"))
+
+  def name():String = {
     headers.get("name")
   }
 
@@ -39,8 +41,8 @@ class MultipartItem(val fileobj:Tuple2[java.util.Map[String,String], ByteArrayOu
   }
 
   def writeToFile(path: String) = {
-    val fileout = new FileOutputStream(path)
-    data.writeTo(fileout)
-    fileout.close
+    val outStream = new FileOutputStream(path)
+    data.writeTo(outStream)
+    outStream.close
   }
 }
