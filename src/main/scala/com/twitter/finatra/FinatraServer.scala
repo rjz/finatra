@@ -16,8 +16,8 @@
 package com.twitter.finatra
 
 import com.twitter.finagle.builder.{Server, ServerBuilder}
-
-
+import com.twitter.conversions.storage._
+import com.twitter.util.StorageUnit
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.{Request => FinagleRequest, Response => FinagleResponse}
 import com.twitter.finagle.{Service, SimpleFilter}
@@ -86,8 +86,12 @@ class FinatraServer extends Logging {
 
     val service: Service[FinagleRequest, FinagleResponse] = allFilters(appService)
 
+    val http = Http().maxRequestSize(Config.getInt("max_request_megabytes").megabyte)
+
+    val codec = new RichHttp[FinagleRequest](http)
+
     val server: Server = ServerBuilder()
-      .codec(new RichHttp[FinagleRequest](Http()))
+      .codec(codec)
       .bindTo(new InetSocketAddress(port))
       .tracerFactory(tracerFactory)
       .name(Config.get("name"))
