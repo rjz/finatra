@@ -82,11 +82,15 @@ class ExampleSpec extends SpecHelper {
      * curl -F avatar=@/path/to/img http://localhost:7070/profile
      */
     post("/profile") { request =>
-      request.multiParams.get("avatar").map { avatar =>
-        println("content type is " + avatar.contentType)
-        avatar.writeToFile("/tmp/avatar") //writes uploaded avatar to /tmp/avatar
+      request.multiParams.get("avatar") match {
+
+        case Some(avatar) =>
+          avatar.writeToFile("/tmp/avatar") //writes uploaded avatar to /tmp/avatar
+          render.plain(avatar.filename).toFuture
+        case None =>
+          render.status(500).toFuture
+
       }
-      render.plain("ok").toFuture
     }
 
     /**

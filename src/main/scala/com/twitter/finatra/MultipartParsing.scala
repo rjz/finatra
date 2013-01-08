@@ -19,6 +19,7 @@ import org.apache.commons.fileupload._
 import java.io._
 import scala.collection.mutable.Map
 import com.twitter.finagle.http.{Request => FinagleRequest}
+import org.jboss.netty.handler.codec.http.HttpRequestDecoder
 
 object MultipartParsing {
 
@@ -36,8 +37,14 @@ object MultipartParsing {
       var nextPart      = multistream.skipPreamble
 
       while(nextPart){
+
+        val hdec = new HttpRequestDecoder()
+        val msg = hdec
         val paramParser = new ParameterParser
-        val headers     = paramParser.parse(multistream.readHeaders.toString, ';').asInstanceOf[java.util.Map[String,String]]
+        val rawHeaders = multistream.readHeaders()
+        val nheaders = HeaderParser.getParsedHeaders(rawHeaders)
+        val headers     = paramParser.parse(nheaders.get("Content-Disposition"), ';').asInstanceOf[java.util.Map[String,String]]
+        headers.put("Content-Type", nheaders.get("Content-Type"))
         val out         = new ByteArrayOutputStream
         val name        = headers.get("name").toString
 
