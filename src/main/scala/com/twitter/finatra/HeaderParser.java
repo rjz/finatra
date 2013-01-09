@@ -4,9 +4,12 @@ import java.util.HashMap;
 
 public class HeaderParser {
 
+    /*
+        This is a public, static version of Apache FileUpload's awesome header parser, with minor modifications to use
+        a HashMap instead of an internal FileItemsImpl and made public instead of protected.
+     */
     public static HashMap<String, String> getParsedHeaders(String headerPart) {
         final int len = headerPart.length();
-        //FileItemHeadersImpl headers = newFileItemHeaders();
         HashMap<String, String> headers = new HashMap<String, String>();
         int start = 0;
         for (;;) {
@@ -53,11 +56,6 @@ public class HeaderParser {
         }
     }
 
-    /**
-     * Reads the next header line.
-     * @param headers String with all headers.
-     * @param header Map where to store the current header.
-     */
     public static void parseHeaderLine(HashMap<String,String> headers, String header) {
         final int colonOffset = header.indexOf(':');
         if (colonOffset == -1) {

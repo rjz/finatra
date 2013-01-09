@@ -38,20 +38,14 @@ object MultipartParsing {
 
       while(nextPart){
 
-        val hdec = new HttpRequestDecoder()
-        val msg = hdec
-        val paramParser = new ParameterParser
-        val rawHeaders = multistream.readHeaders()
-        val nheaders = HeaderParser.getParsedHeaders(rawHeaders)
-        val headers     = paramParser.parse(nheaders.get("Content-Disposition"), ';').asInstanceOf[java.util.Map[String,String]]
-        headers.put("Content-Type", nheaders.get("Content-Type"))
+        val rawHeaders  = multistream.readHeaders()
         val out         = new ByteArrayOutputStream
-        val name        = headers.get("name").toString
 
         multistream.readBodyData(out)
 
-        val fileobj = new MultipartItem(Tuple2(headers, out))
-        multiParams = multiParams + Tuple2(name, fileobj)
+        val multiPartItem = new MultipartItem(rawHeaders, out)
+
+        multiParams += Tuple2(multiPartItem.name, multiPartItem)
         nextPart    = multistream.readBoundary
       }
     }
