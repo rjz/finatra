@@ -44,7 +44,9 @@ object MultipartParsing {
 
         val multiPartItem = new MultipartItem(rawHeaders, out)
 
-        multiParams += Tuple2(multiPartItem.name, multiPartItem)
+        multiPartItem.name foreach {
+          multiParams += Tuple2(_, multiPartItem)
+        }
         nextPart    = multistream.readBoundary
       }
     }

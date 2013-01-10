@@ -20,24 +20,25 @@ import org.apache.commons.fileupload.ParameterParser
 
 class MultipartItem(val rawHeaders: String, val data: ByteArrayOutputStream) {
 
-  val paramParser         = new ParameterParser
-  val parsedHeaders       = HeaderParser.getParsedHeaders(rawHeaders)
-  val contentDisposition  = parsedHeaders.get("Content-Disposition")
-  val headers             = paramParser.parse(contentDisposition, ';').
-                              asInstanceOf[java.util.Map[String,String]]
+  lazy val paramParser         = new ParameterParser
+  lazy val parsedHeaders       = MultipartHeaderParser(rawHeaders)
 
-  headers.put("Content-Type", parsedHeaders.get("Content-Type"))
-
-  def name():String = {
-    headers.get("name")
+  lazy val contentDispositionMap = {
+    parsedHeaders.get("Content-Disposition") map { cp =>
+      paramParser.parse(cp, ';').asInstanceOf[java.util.Map[String,String]]
+    }
   }
 
-  def contentType = {
-    headers.get("Content-Type")
+  def name(): Option[String] = {
+    contentDispositionMap map (_.get("name"))
   }
 
-  def filename = {
-    headers.get("filename")
+  def contentType: Option[String] = {
+    parsedHeaders.get("Content-Type")
+  }
+
+  def filename: Option[String] = {
+    contentDispositionMap map (_.get("filename"))
   }
 
   def writeToFile(path: String) = {
