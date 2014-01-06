@@ -18,12 +18,11 @@ package com.twitter.finatra
 import org.jboss.netty.handler.codec.http._
 import org.jboss.netty.handler.codec.http.HttpVersion.HTTP_1_1
 import org.jboss.netty.buffer.ChannelBuffers.copiedBuffer
-import com.twitter.finagle.http.{Response => FinagleResponse}
+import com.twitter.finagle.http.{Response => FinagleResponse, Request => FinagleRequest, Version, Status, HeaderMap}
 import org.jboss.netty.util.CharsetUtil.UTF_8
 import com.twitter.util.Future
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-
 import org.apache.commons.io.IOUtils
 import java.io.File
 
@@ -38,24 +37,24 @@ object Response {
     new Response().body(body).status(status).headers(headers).build
 }
 
-class Response {
-  var status:     Int                  = 200
-  var headers:    Map[String, String]  = Map()
+class Response(request: Request = new Request(FinagleRequest())) extends FinagleResponse {
+//  var status:     Int                  = 200
+//  var headers:    Map[String, String]  = Map()
   var hasCookies: Boolean              = false
   var strBody:    Option[String]       = None
   var binBody:    Option[Array[Byte]]  = None
   var json:       Option[Any]          = None
   var view:       Option[View]         = None
 
-  lazy val cookies = new CookieEncoder(true)
+//  lazy val cookies = new CookieEncoder(true)
 
   lazy val jsonMapper = {
     val m = new ObjectMapper()
     m.registerModule(DefaultScalaModule)
   }
 
-  def contentType: Option[String] =
-    this.headers.get("Content-Type")
+//  def contentType: Option[String] =
+//    this.headers.get("Content-Type")
 
   def setContent(resp: HttpResponse): HttpResponse = {
     json match {
@@ -91,13 +90,13 @@ class Response {
 
   def cookie(k: String, v: String): Response = {
     this.hasCookies = true
-    this.cookies.addCookie(k, v)
+    this.cookie(k, v)
     this
   }
 
   def cookie(c: Cookie): Response = {
     this.hasCookies = true
-    this.cookies.addCookie(c)
+    this.cookie(c)
     this
   }
 
@@ -117,7 +116,7 @@ class Response {
   }
 
   def status(i: Int): Response = {
-    this.status = i
+    this.status(i)
     this
   }
 
@@ -145,12 +144,14 @@ class Response {
   }
 
   def header(k: String, v: String): Response = {
-    this.headers += (k -> v)
+    this.headers.add(k, v)
     this
   }
 
   def headers(m: Map[String, String]): Response = {
-    this.headers = this.headers ++ m
+    m.foreach { x =>
+      this.headers.add(x._1, x._2)
+    }
     this
   }
 
@@ -175,7 +176,7 @@ class Response {
 
       val mtype = FileService.extMap.getContentType('.' + fullAssetPath.split('.').last)
 
-      this.status = 200
+      this.status(200)
       this.header("Content-Type", mtype)
       this.body(bytes)
     } else {
@@ -186,17 +187,18 @@ class Response {
   }
 
   def build: FinagleResponse  = {
-    val responseStatus  = HttpResponseStatus.valueOf(status)
-    val resp            = new DefaultHttpResponse(HTTP_1_1, responseStatus)
+    val resp = request.response
+//    resp.setStatusCode(status)
 
-    headers.foreach { xs =>
+    headerMap.foreach { xs =>
       resp.headers.set(xs._1, xs._2)
     }
 
-    if (this.hasCookies) resp.headers.set("Set-Cookie", cookies.encode)
+//    if (this.hasCookies) resp.headers.set("Set-Cookie", cookies.encode)
 
     setContent(resp)
-    FinagleResponse(resp)
+//    FinagleResponse(resp)
+    this
   }
 
   def toFuture:Future[Response] = Future.value(this)
@@ -215,4 +217,5 @@ class Response {
     buf.toString()
   }
 
+  val httpResponse = new DefaultHttpResponse(Version.Http11, Status.Ok)
 }

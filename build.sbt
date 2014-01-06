@@ -4,7 +4,7 @@ name := "finatra"
 
 organization := "com.twitter"
 
-version := "1.5.0"
+version := "1.5.1-SNAPSHOT"
 
 scalaVersion := "2.10.3"
 
@@ -19,7 +19,8 @@ libraryDependencies ++= Seq(
   "com.google.code.findbugs" % "jsr305" % "2.0.1",
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.2.2",
   "com.github.spullara.mustache.java" % "compiler" % "0.8.13",
-  "com.fasterxml.jackson.core" % "jackson-databind" % "2.2.2"
+  "com.fasterxml.jackson.core" % "jackson-databind" % "2.2.2",
+  "com.twitter" %% "storehaus-core" % "0.6.0"
 )
 
 scalacOptions in ThisBuild ++= Seq("-unchecked", "-deprecation")

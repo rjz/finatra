@@ -16,16 +16,32 @@
 package com.twitter.finatra
 
 import scala.collection.mutable.Map
-import com.twitter.finagle.http.{Request => FinagleRequest, RequestProxy}
+import com.twitter.finagle.http.{Request => FinagleRequest, Cookie, RequestProxy}
 import util.Sorting
 import com.google.common.base.Splitter
 import scala.collection.JavaConversions._
+import com.twitter.storehaus.Store
+import com.google.common.hash.Hashing
+import java.math.BigInteger
+import java.security.SecureRandom
+import org.jboss.netty.handler.codec.http.DefaultCookie
 
 class Request(val request: FinagleRequest) extends RequestProxy {
 
   var multiParams:  Map[String, MultipartItem]  = Map.empty
   var routeParams:  Map[String, String]         = Map.empty
   var error:        Option[Throwable]           = None
+
+  val secret = "stringsecret"
+  val random = new SecureRandom
+
+//  lazy val sessionId: String = cookies.get("_session_id") match {
+//    case Some(id) => id.value
+//    case None =>
+//      val sid = new BigInteger(130, random).toString(32)
+//      response.cookie("_session_id", sid)
+//      sid
+//  }
 
   def accepts: Seq[ContentType] = {
     val accept = this.headers.get("Accept")

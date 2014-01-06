@@ -20,7 +20,7 @@ import com.twitter.util.Future
 import org.jboss.netty.handler.codec.http._
 import com.twitter.server.Stats
 import com.twitter.app.App
-
+import com.twitter.finagle.http.{Request => FinagleRequest}
 class Controller extends App with Logging with Stats {
 
   val routes = new RouteVector[(HttpMethod, PathPattern, Request => Future[Response])]
@@ -46,7 +46,7 @@ class Controller extends App with Logging with Stats {
 
   val stats = statsReceiver.scope("Controller")
 
-  def render: Response  = new Response
+  def render(implicit request: Request): Response = request.response
   def route:  Router    = new Router(this)
 
   def redirect(location: String, message: String = "", permanent: Boolean = false): Response = {
