@@ -27,29 +27,29 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.commons.io.IOUtils
 import java.io.File
 
-object Response {
+object ResponseBuilder {
   def apply(body: String): FinagleResponse =
-    new Response().body(body).status(200).build
+    new ResponseBuilder().body(body).status(200).build
 
   def apply(status: Int, body: String): FinagleResponse =
-    new Response().body(body).status(status).build
+    new ResponseBuilder().body(body).status(status).build
 
   def apply(status: Int, body: String, headers: Map[String, String]): FinagleResponse =
-    new Response().body(body).status(status).headers(headers).build
+    new ResponseBuilder().body(body).status(status).headers(headers).build
 }
 
-class Response {
-  var status:     Int                  = 200
-  var headers:    Map[String, String]  = Map()
-  var hasCookies: Boolean              = false
-  var strBody:    Option[String]       = None
-  var binBody:    Option[Array[Byte]]  = None
-  var json:       Option[Any]          = None
-  var view:       Option[View]         = None
+class ResponseBuilder {
+  private var status:     Option[Int]          = None
+  private var headers:    Map[String, String]  = Map()
+  private var hasCookies: Boolean              = false
+  private var strBody:    Option[String]       = None
+  private var binBody:    Option[Array[Byte]]  = None
+  private var json:       Option[Any]          = None
+  private var view:       Option[View]         = None
 
-  lazy val cookies = new CookieEncoder(true)
+  private lazy val cookies = new CookieEncoder(true)
 
-  lazy val jsonMapper = {
+  private lazy val jsonMapper = {
     val m = new ObjectMapper()
     m.registerModule(DefaultScalaModule)
   }
@@ -80,8 +80,7 @@ class Response {
                   case Some(bb) =>
                     resp.headers.set("Content-Length", bb.length)
                     resp.setContent(copiedBuffer(bb))
-                  case None =>
-                    throw new RuntimeException("nothing to render")
+                  case None => resp // no-op
                 }
             }
         }
@@ -89,83 +88,83 @@ class Response {
     resp
   }
 
-  def cookie(k: String, v: String): Response = {
+  def cookie(k: String, v: String): ResponseBuilder = {
     this.hasCookies = true
     this.cookies.addCookie(k, v)
     this
   }
 
-  def cookie(c: Cookie): Response = {
+  def cookie(c: Cookie): ResponseBuilder = {
     this.hasCookies = true
     this.cookies.addCookie(c)
     this
   }
 
-  def ok: Response = {
+  def ok: ResponseBuilder = {
     status(200)
     this
   }
 
-  def notFound: Response  = {
+  def notFound: ResponseBuilder  = {
     status(404)
     this
   }
 
-  def body(s: String): Response = {
+  def body(s: String): ResponseBuilder = {
     this.strBody = Some(s)
     this
   }
 
-  def status(i: Int): Response = {
-    this.status = i
+  def status(i: Int): ResponseBuilder = {
+    this.status = Some(i)
     this
   }
 
-  def nothing: Response = {
+  def nothing: ResponseBuilder = {
     this.header("Content-Type", "text/plain")
     this.body("")
     this
   }
 
-  def plain(body:String): Response = {
+  def plain(body:String): ResponseBuilder = {
     this.header("Content-Type", "text/plain")
     this.body(body)
     this
   }
 
-  def html(body:String): Response = {
+  def html(body:String): ResponseBuilder = {
     this.header("Content-Type", "text/html")
     this.body(body)
     this
   }
 
-  def body(b: Array[Byte]): Response = {
+  def body(b: Array[Byte]): ResponseBuilder = {
     this.binBody = Some(b)
     this
   }
 
-  def header(k: String, v: String): Response = {
+  def header(k: String, v: String): ResponseBuilder = {
     this.headers += (k -> v)
     this
   }
 
-  def headers(m: Map[String, String]): Response = {
+  def headers(m: Map[String, String]): ResponseBuilder = {
     this.headers = this.headers ++ m
     this
   }
 
-  def json(o: Any): Response = {
+  def json(o: Any): ResponseBuilder = {
     this.header("Content-Type", "application/json")
     this.json = Some(o)
     this
   }
 
-  def view(v: View): Response = {
+  def view(v: View): ResponseBuilder = {
     this.view = Some(v)
     this
   }
 
-  def static(path: String): Response = {
+  def static(path: String): ResponseBuilder = {
     val fullAssetPath = new File(config.assetPath(), path).toString
     if (FileResolver.hasFile(fullAssetPath) && path != '/') {
       val stream  = FileResolver.getInputStream(fullAssetPath)
@@ -175,7 +174,7 @@ class Response {
 
       val mtype = FileService.extMap.getContentType('.' + fullAssetPath.split('.').last)
 
-      this.status = 200
+      this.status(200)
       this.header("Content-Type", mtype)
       this.body(bytes)
     } else {
@@ -186,8 +185,14 @@ class Response {
   }
 
   def build: FinagleResponse  = {
-    val responseStatus  = HttpResponseStatus.valueOf(status)
-    val resp            = new DefaultHttpResponse(HTTP_1_1, responseStatus)
+    build(Request())
+  }
+
+  def build(request: Request): FinagleResponse = {
+    val resp            = request.response
+
+    // Only set the status code if set explicitly in the builder
+    this.status map resp.setStatusCode
 
     headers.foreach { xs =>
       resp.headers.set(xs._1, xs._2)
@@ -196,10 +201,11 @@ class Response {
     if (this.hasCookies) resp.headers.set("Set-Cookie", cookies.encode)
 
     setContent(resp)
-    FinagleResponse(resp)
+
+    resp
   }
 
-  def toFuture:Future[Response] = Future.value(this)
+  def toFuture:Future[ResponseBuilder] = Future.value(this)
 
   override def toString: String = {
     val buf = new StringBuilder
