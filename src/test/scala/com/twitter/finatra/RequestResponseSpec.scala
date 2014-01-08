@@ -21,6 +21,11 @@ class RequestResponseSpec extends FlatSpecHelper {
       request.response.headers.add("foo", "bar")
       render.plain("foo").toFuture
     }
+
+    get("/content") { request =>
+      request.response.setContentString("foo")
+      render.ok.toFuture
+    }
   }
 
   val server = new FinatraServer
@@ -40,6 +45,11 @@ class RequestResponseSpec extends FlatSpecHelper {
   "Response" should "carry along headers" in {
     get("/headers")
     response.originalResponse.headerMap.contains("foo") should equal(true)
+  }
+
+  "Response" should "carry along content" in {
+    get("/content")
+    response.originalResponse.getContentString() should equal("foo")
   }
 
 }
