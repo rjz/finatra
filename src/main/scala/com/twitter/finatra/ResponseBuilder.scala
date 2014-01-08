@@ -57,7 +57,7 @@ class ResponseBuilder {
   def contentType: Option[String] =
     this.headers.get("Content-Type")
 
-  def setContent(resp: HttpResponse): HttpResponse = {
+  private def setContent(resp: HttpResponse): HttpResponse = {
     json match {
       case Some(j) =>
         resp.headers.set("Content-Type", "application/json")
@@ -192,20 +192,20 @@ class ResponseBuilder {
   }
 
   def build(request: Request): FinagleResponse = {
-    val resp            = request.response
+    val response = request.response
 
     // Only set the status code if set explicitly in the builder
-    this.status map resp.setStatusCode
+    this.status map response.setStatusCode
 
     headers.foreach { xs =>
-      resp.headers.add(xs._1, xs._2)
+      response.headers.add(xs._1, xs._2)
     }
 
-    cookies.foreach(resp.cookies.add(_))
+    cookies.foreach(response.cookies.add(_))
 
-    setContent(resp)
+    setContent(response)
 
-    resp
+    response
   }
 
   def toFuture:Future[ResponseBuilder] = Future.value(this)
