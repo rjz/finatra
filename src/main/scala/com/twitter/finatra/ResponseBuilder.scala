@@ -195,7 +195,7 @@ class ResponseBuilder {
     this.status map resp.setStatusCode
 
     headers.foreach { xs =>
-      resp.headers.set(xs._1, xs._2)
+      resp.headers.add(xs._1, xs._2)
     }
 
     if (this.hasCookies) resp.headers.set("Set-Cookie", cookies.encode)
