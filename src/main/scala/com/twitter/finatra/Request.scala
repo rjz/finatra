@@ -26,6 +26,11 @@ import java.math.BigInteger
 import java.security.SecureRandom
 import org.jboss.netty.handler.codec.http.DefaultCookie
 
+object Request {
+  def apply() = new Request(FinagleRequest("/"))
+  def apply(path: String) = new Request(FinagleRequest(path))
+}
+
 class Request(val request: FinagleRequest) extends RequestProxy {
 
   var multiParams:  Map[String, MultipartItem]  = Map.empty

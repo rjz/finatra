@@ -18,45 +18,46 @@ package com.twitter.finatra
 import org.jboss.netty.handler.codec.http._
 import org.jboss.netty.handler.codec.http.HttpVersion.HTTP_1_1
 import org.jboss.netty.buffer.ChannelBuffers.copiedBuffer
-import com.twitter.finagle.http.{Response => FinagleResponse, Request => FinagleRequest, Version, Status, HeaderMap}
+import com.twitter.finagle.http.{Response => FinagleResponse, Cookie}
 import org.jboss.netty.util.CharsetUtil.UTF_8
 import com.twitter.util.Future
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+
 import org.apache.commons.io.IOUtils
 import java.io.File
+import org.jboss.netty.handler.codec.http.DefaultCookie
+import org.jboss.netty.handler.codec.http.{Cookie => NettyCookie}
 
-object Response {
+object ResponseBuilder {
   def apply(body: String): FinagleResponse =
-    new Response().body(body).status(200).build
+    new ResponseBuilder().body(body).status(200).build
 
   def apply(status: Int, body: String): FinagleResponse =
-    new Response().body(body).status(status).build
+    new ResponseBuilder().body(body).status(status).build
 
   def apply(status: Int, body: String, headers: Map[String, String]): FinagleResponse =
-    new Response().body(body).status(status).headers(headers).build
+    new ResponseBuilder().body(body).status(status).headers(headers).build
 }
 
-class Response(request: Request = new Request(FinagleRequest())) extends FinagleResponse {
-//  var status:     Int                  = 200
-//  var headers:    Map[String, String]  = Map()
-  var hasCookies: Boolean              = false
-  var strBody:    Option[String]       = None
-  var binBody:    Option[Array[Byte]]  = None
-  var json:       Option[Any]          = None
-  var view:       Option[View]         = None
+class ResponseBuilder {
+  private var status:     Option[Int]          = None
+  private var headers:    Map[String, String]  = Map()
+  private var strBody:    Option[String]       = None
+  private var binBody:    Option[Array[Byte]]  = None
+  private var json:       Option[Any]          = None
+  private var view:       Option[View]         = None
+  private var cookies:    List[Cookie]         = List()
 
-//  lazy val cookies = new CookieEncoder(true)
-
-  lazy val jsonMapper = {
+  private lazy val jsonMapper = {
     val m = new ObjectMapper()
     m.registerModule(DefaultScalaModule)
   }
 
-//  def contentType: Option[String] =
-//    this.headers.get("Content-Type")
+  def contentType: Option[String] =
+    this.headers.get("Content-Type")
 
-  def setContent(resp: HttpResponse): HttpResponse = {
+  private def setContent(resp: HttpResponse): HttpResponse = {
     json match {
       case Some(j) =>
         resp.headers.set("Content-Type", "application/json")
@@ -79,8 +80,7 @@ class Response(request: Request = new Request(FinagleRequest())) extends Finagle
                   case Some(bb) =>
                     resp.headers.set("Content-Length", bb.length)
                     resp.setContent(copiedBuffer(bb))
-                  case None =>
-                    throw new RuntimeException("nothing to render")
+                  case None => resp // no-op
                 }
             }
         }
@@ -88,85 +88,86 @@ class Response(request: Request = new Request(FinagleRequest())) extends Finagle
     resp
   }
 
-  def cookie(k: String, v: String): Response = {
-    this.hasCookies = true
-    this.cookie(k, v)
+  def cookie(k: String, v: String): ResponseBuilder = {
+    this.cookies ::= new Cookie(new DefaultCookie(k, v))
     this
   }
 
-  def cookie(c: Cookie): Response = {
-    this.hasCookies = true
-    this.cookie(c)
+  def cookie(c: Cookie): ResponseBuilder = {
+    this.cookies ::= c
     this
   }
 
-  def ok: Response = {
+  def cookie(c: NettyCookie): ResponseBuilder = {
+    this.cookies ::= new Cookie(c)
+    this
+  }
+
+  def ok: ResponseBuilder = {
     status(200)
     this
   }
 
-  def notFound: Response  = {
+  def notFound: ResponseBuilder  = {
     status(404)
     this
   }
 
-  def body(s: String): Response = {
+  def body(s: String): ResponseBuilder = {
     this.strBody = Some(s)
     this
   }
 
-  def status(i: Int): Response = {
-    this.status(i)
+  def status(i: Int): ResponseBuilder = {
+    this.status = Some(i)
     this
   }
 
-  def nothing: Response = {
+  def nothing: ResponseBuilder = {
     this.header("Content-Type", "text/plain")
     this.body("")
     this
   }
 
-  def plain(body:String): Response = {
+  def plain(body:String): ResponseBuilder = {
     this.header("Content-Type", "text/plain")
     this.body(body)
     this
   }
 
-  def html(body:String): Response = {
+  def html(body:String): ResponseBuilder = {
     this.header("Content-Type", "text/html")
     this.body(body)
     this
   }
 
-  def body(b: Array[Byte]): Response = {
+  def body(b: Array[Byte]): ResponseBuilder = {
     this.binBody = Some(b)
     this
   }
 
-  def header(k: String, v: String): Response = {
-    this.headers.add(k, v)
+  def header(k: String, v: String): ResponseBuilder = {
+    this.headers += (k -> v)
     this
   }
 
-  def headers(m: Map[String, String]): Response = {
-    m.foreach { x =>
-      this.headers.add(x._1, x._2)
-    }
+  def headers(m: Map[String, String]): ResponseBuilder = {
+    this.headers = this.headers ++ m
     this
   }
 
-  def json(o: Any): Response = {
+  def json(o: Any): ResponseBuilder = {
     this.header("Content-Type", "application/json")
     this.json = Some(o)
     this
   }
 
-  def view(v: View): Response = {
+  def view(v: View): ResponseBuilder = {
     this.view = Some(v)
     this
   }
 
-  def static(path: String): Response = {
+  def static(path: String): ResponseBuilder = {
     val fullAssetPath = new File(config.assetPath(), path).toString
     if (FileResolver.hasFile(fullAssetPath) && path != '/') {
       val stream  = FileResolver.getInputStream(fullAssetPath)
@@ -187,21 +188,27 @@ class Response(request: Request = new Request(FinagleRequest())) extends Finagle
   }
 
   def build: FinagleResponse  = {
-    val resp = request.response
-//    resp.setStatusCode(status)
-
-    headerMap.foreach { xs =>
-      resp.headers.set(xs._1, xs._2)
-    }
-
-//    if (this.hasCookies) resp.headers.set("Set-Cookie", cookies.encode)
-
-    setContent(resp)
-//    FinagleResponse(resp)
-    this
+    build(Request())
   }
 
-  def toFuture:Future[Response] = Future.value(this)
+  def build(request: Request): FinagleResponse = {
+    val response = request.response
+
+    // Only set the status code if set explicitly in the builder
+    this.status map response.setStatusCode
+
+    headers.foreach { xs =>
+      response.headers.add(xs._1, xs._2)
+    }
+
+    cookies.foreach(response.cookies.add(_))
+
+    setContent(response)
+
+    response
+  }
+
+  def toFuture:Future[ResponseBuilder] = Future.value(this)
 
   override def toString: String = {
     val buf = new StringBuilder
@@ -217,5 +224,4 @@ class Response(request: Request = new Request(FinagleRequest())) extends Finagle
     buf.toString()
   }
 
-  val httpResponse = new DefaultHttpResponse(Version.Http11, Status.Ok)
 }

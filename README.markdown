@@ -4,6 +4,8 @@
 
 See the [Getting Started](http://finatra.info/docs/tutorial.html) guide or the [Documentation](http://finatra.info/docs/index.html) for more information.
 
+Get help on the [finatra-users](https://groups.google.com/forum/#!forum/finatra-users) mailing list.
+
 ```scala
 class HelloWorld extends Controller {
 
@@ -19,19 +21,25 @@ object App extends FinatraServer {
 }
 ```
 
-Latest version:
+### SBT (dual published for 2.9.x or 2.10.x)
+
+```scala
+"com.twitter" %% "finatra" % "1.5.0"
+```
+
+### Maven
 
 ```xml
 <dependency>
   <groupId>com.twitter</groupId>
-  <artifactId>finatra</artifactId>
-  <version>1.4.1</version>
+  <artifactId>finatra_2.10</artifactId>
+  <!-- for 2.9 <artifactId>finatra_2.9</artifactId> -->
+  <version>1.5.0</version>
 </dependency>
 ```
 
 ## License
 
-Copyright 2013 Twitter, Inc and other contributors
+Copyright 2014 Twitter, Inc and other contributors
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
-
