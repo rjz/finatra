@@ -40,13 +40,13 @@ class Request(val request: FinagleRequest) extends RequestProxy {
   val secret = "stringsecret"
   val random = new SecureRandom
 
-//  lazy val sessionId: String = cookies.get("_session_id") match {
-//    case Some(id) => id.value
-//    case None =>
-//      val sid = new BigInteger(130, random).toString(32)
-//      response.cookie("_session_id", sid)
-//      sid
-//  }
+  lazy val sessionId: String = cookies.get("_session_id") match {
+    case Some(id) => id.value
+    case None =>
+      val sid = new BigInteger(130, random).toString(32)
+      request.response.cookies.add(new Cookie(new DefaultCookie("_session_id", sid)))
+      sid
+  }
 
   def accepts: Seq[ContentType] = {
     val accept = this.headers.get("Accept")
