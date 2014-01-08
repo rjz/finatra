@@ -14,7 +14,7 @@ class RequestResponseSpec extends FlatSpecHelper {
 
     get("/cookies") { request =>
       request.response.cookies.add(new Cookie(new DefaultCookie("foo", "bar")))
-      render.plain("asd").toFuture
+      render.plain("asd").cookie("foo2", "bar2").toFuture
     }
 
     get("/headers") { request =>
@@ -31,9 +31,10 @@ class RequestResponseSpec extends FlatSpecHelper {
     response.code should equal (429)
   }
 
-  "Response" should "carry along cookies" in {
+  "Response" should "include original cookies, and rendered cookies" in {
     get("/cookies")
     response.originalResponse.cookies.contains("foo") should equal(true)
+    response.originalResponse.cookies.contains("foo2") should equal(true)
   }
 
   "Response" should "carry along headers" in {

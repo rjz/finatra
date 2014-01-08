@@ -18,7 +18,7 @@ package com.twitter.finatra
 import org.jboss.netty.handler.codec.http._
 import org.jboss.netty.handler.codec.http.HttpVersion.HTTP_1_1
 import org.jboss.netty.buffer.ChannelBuffers.copiedBuffer
-import com.twitter.finagle.http.{Response => FinagleResponse}
+import com.twitter.finagle.http.{Response => FinagleResponse, Cookie}
 import org.jboss.netty.util.CharsetUtil.UTF_8
 import com.twitter.util.Future
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -26,6 +26,8 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 import org.apache.commons.io.IOUtils
 import java.io.File
+import org.jboss.netty.handler.codec.http.DefaultCookie
+import org.jboss.netty.handler.codec.http.{Cookie => NettyCookie}
 
 object ResponseBuilder {
   def apply(body: String): FinagleResponse =
@@ -41,13 +43,11 @@ object ResponseBuilder {
 class ResponseBuilder {
   private var status:     Option[Int]          = None
   private var headers:    Map[String, String]  = Map()
-  private var hasCookies: Boolean              = false
   private var strBody:    Option[String]       = None
   private var binBody:    Option[Array[Byte]]  = None
   private var json:       Option[Any]          = None
   private var view:       Option[View]         = None
-
-  private lazy val cookies = new CookieEncoder(true)
+  private var cookies:    List[Cookie]         = List()
 
   private lazy val jsonMapper = {
     val m = new ObjectMapper()
@@ -89,14 +89,17 @@ class ResponseBuilder {
   }
 
   def cookie(k: String, v: String): ResponseBuilder = {
-    this.hasCookies = true
-    this.cookies.addCookie(k, v)
+    this.cookies ::= new Cookie(new DefaultCookie(k, v))
     this
   }
 
   def cookie(c: Cookie): ResponseBuilder = {
-    this.hasCookies = true
-    this.cookies.addCookie(c)
+    this.cookies ::= c
+    this
+  }
+
+  def cookie(c: NettyCookie): ResponseBuilder = {
+    this.cookies ::= new Cookie(c)
     this
   }
 
@@ -198,7 +201,7 @@ class ResponseBuilder {
       resp.headers.add(xs._1, xs._2)
     }
 
-    if (this.hasCookies) resp.headers.set("Set-Cookie", cookies.encode)
+    cookies.foreach(resp.cookies.add(_))
 
     setContent(resp)
 
